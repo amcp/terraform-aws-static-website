@@ -9,6 +9,12 @@ variable "website-domain-redirect" {
   type        = string
 }
 
+variable "wildcard" {
+  description = "Include wildcard"
+  default     = true
+  type        = bool
+}
+
 variable "tags" {
   description = "Tags added to resources"
   default     = {}
