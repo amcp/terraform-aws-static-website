@@ -3,9 +3,9 @@
 terraform {
   required_providers {
     aws = {
-      source  = "hashicorp/aws"
-      version = "~> 3.34.0"
-      configuration_aliases = [ aws.iad, aws.target_region ]
+      source                = "hashicorp/aws"
+      version               = "~> 3.34.0"
+      configuration_aliases = [aws.iad, aws.target_region]
     }
   }
 }
@@ -252,7 +252,7 @@ resource "aws_s3_bucket_policy" "update_website_root_bucket_policy" {
   provider = aws.target_region
   bucket   = aws_s3_bucket.website_root.id
 
-  policy   = <<POLICY
+  policy = <<POLICY
 {
   "Version": "2012-10-17",
   "Id": "PolicyForWebsiteEndpointsPublicContent",
