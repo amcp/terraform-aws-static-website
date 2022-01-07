@@ -15,12 +15,6 @@ variable "wildcard" {
   type        = bool
 }
 
-variable "region" {
-  description = "region"
-  default     = true
-  type        = string
-}
-
 variable "tags" {
   description = "Tags added to resources"
   default     = {}
