@@ -5,13 +5,9 @@ terraform {
     aws = {
       source  = "hashicorp/aws"
       version = "~> 3.34.0"
+      configuration_aliases = [ aws.iad, aws.target_region ]
     }
   }
-}
-
-provider "aws" {
-  alias  = "us-east-1"
-  region = "us-east-1"
 }
 
 ## Route 53
@@ -24,7 +20,7 @@ data "aws_route53_zone" "main" {
 ## ACM (AWS Certificate Manager)
 # Creates the wildcard certificate *.<yourdomain.com>
 resource "aws_acm_certificate" "wildcard_website" {
-  provider                  = aws.us-east-1
+  provider                  = aws.iad
   domain_name               = var.website-domain-main
   subject_alternative_names = var.wildcard ? ["*.${var.website-domain-main}"] : []
   validation_method         = "DNS"
@@ -40,8 +36,10 @@ resource "aws_acm_certificate" "wildcard_website" {
 
 }
 
-# Validates the ACM wildcard by creating a Route53 record (as `validation_method` is set to `DNS` in the aws_acm_certificate resource)
+# Validates the ACM wildcard by creating a Route53 record (as `validation_method` is set to `DNS`
+# in the aws_acm_certificate resource)
 resource "aws_route53_record" "wildcard_validation" {
+  provider = aws.iad
   for_each = {
     for dvo in aws_acm_certificate.wildcard_website.domain_validation_options : dvo.domain_name => {
       name   = dvo.resource_record_name
@@ -59,7 +57,7 @@ resource "aws_route53_record" "wildcard_validation" {
 
 # Triggers the ACM wildcard certificate validation event
 resource "aws_acm_certificate_validation" "wildcard_cert" {
-  provider                = aws.us-east-1
+  provider                = aws.iad
   certificate_arn         = aws_acm_certificate.wildcard_website.arn
   validation_record_fqdns = [for k, v in aws_route53_record.wildcard_validation : v.fqdn]
 }
@@ -67,8 +65,6 @@ resource "aws_acm_certificate_validation" "wildcard_cert" {
 
 # Get the ARN of the issued certificate
 data "aws_acm_certificate" "wildcard_website" {
-  provider = aws.us-east-1
-
   depends_on = [
     aws_acm_certificate.wildcard_website,
     aws_route53_record.wildcard_validation,
@@ -83,12 +79,13 @@ data "aws_acm_certificate" "wildcard_website" {
 ## S3
 # Creates bucket to store logs
 resource "aws_s3_bucket" "website_logs" {
-  bucket = "${var.website-domain-main}-logs"
-  acl    = "log-delivery-write"
+  provider = aws.target_region
+  bucket   = "${var.website-domain-main}-logs"
+  acl      = "log-delivery-write"
 
-  # Comment the following line if you are uncomfortable with Terraform destroying the bucket even if this one is not empty
+  # Comment the following line if you are uncomfortable with Terraform destroying the
+  # bucket even if this one is not empty
   force_destroy = true
-
 
   tags = merge(var.tags, {
     ManagedBy = "terraform"
@@ -102,8 +99,9 @@ resource "aws_s3_bucket" "website_logs" {
 
 # Creates bucket to store the static website
 resource "aws_s3_bucket" "website_root" {
-  bucket = "${var.website-domain-main}-root"
-  acl    = "public-read"
+  provider = aws.target_region
+  bucket   = "${var.website-domain-main}-root"
+  acl      = "public-read"
 
   # Comment the following line if you are uncomfortable with Terraform destroying the bucket even if not empty
   force_destroy = true
@@ -130,6 +128,7 @@ resource "aws_s3_bucket" "website_root" {
 
 # Creates bucket for the website handling the redirection (if required), e.g. from https://www.example.com to https://example.com
 resource "aws_s3_bucket" "website_redirect" {
+  provider      = aws.target_region
   bucket        = "${var.website-domain-main}-redirect"
   acl           = "public-read"
   force_destroy = true
@@ -156,6 +155,7 @@ resource "aws_s3_bucket" "website_redirect" {
 ## CloudFront
 # Creates the CloudFront distribution to serve the static website
 resource "aws_cloudfront_distribution" "website_cdn_root" {
+  provider    = aws.iad
   enabled     = true
   price_class = "PriceClass_All"
   # Select the correct PriceClass depending on who the CDN is supposed to serve (https://docs.aws.amazon.com/AmazonCloudFront/ladev/DeveloperGuide/PriceClass.html)
@@ -234,9 +234,10 @@ resource "aws_cloudfront_distribution" "website_cdn_root" {
 
 # Creates the DNS record to point on the main CloudFront distribution ID
 resource "aws_route53_record" "website_cdn_root_record" {
-  zone_id = data.aws_route53_zone.main.zone_id
-  name    = var.website-domain-main
-  type    = "A"
+  provider = aws.iad
+  zone_id  = data.aws_route53_zone.main.zone_id
+  name     = var.website-domain-main
+  type     = "A"
 
   alias {
     name                   = aws_cloudfront_distribution.website_cdn_root.domain_name
@@ -248,9 +249,10 @@ resource "aws_route53_record" "website_cdn_root_record" {
 
 # Creates policy to allow public access to the S3 bucket
 resource "aws_s3_bucket_policy" "update_website_root_bucket_policy" {
-  bucket = aws_s3_bucket.website_root.id
+  provider = aws.target_region
+  bucket   = aws_s3_bucket.website_root.id
 
-  policy = <<POLICY
+  policy   = <<POLICY
 {
   "Version": "2012-10-17",
   "Id": "PolicyForWebsiteEndpointsPublicContent",
@@ -274,6 +276,7 @@ POLICY
 
 # Creates the CloudFront distribution to serve the redirection website (if redirection is required)
 resource "aws_cloudfront_distribution" "website_cdn_redirect" {
+  provider    = aws.iad
   enabled     = true
   price_class = "PriceClass_All"
   # Select the correct PriceClass depending on who the CDN is supposed to serve (https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/PriceClass.html)
@@ -341,9 +344,10 @@ resource "aws_cloudfront_distribution" "website_cdn_redirect" {
 
 # Creates the DNS record to point on the CloudFront distribution ID that handles the redirection website
 resource "aws_route53_record" "website_cdn_redirect_record" {
-  zone_id = data.aws_route53_zone.main.zone_id
-  name    = var.website-domain-redirect
-  type    = "A"
+  provider = aws.iad
+  zone_id  = data.aws_route53_zone.main.zone_id
+  name     = var.website-domain-redirect
+  type     = "A"
 
   alias {
     name                   = aws_cloudfront_distribution.website_cdn_redirect.domain_name
