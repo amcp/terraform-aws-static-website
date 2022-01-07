@@ -158,6 +158,7 @@ resource "aws_cloudfront_distribution" "website_cdn_root" {
   provider    = aws.iad
   enabled     = true
   price_class = "PriceClass_All"
+
   # Select the correct PriceClass depending on who the CDN is supposed to serve (https://docs.aws.amazon.com/AmazonCloudFront/ladev/DeveloperGuide/PriceClass.html)
   aliases = [var.website-domain-main]
 
@@ -176,10 +177,10 @@ resource "aws_cloudfront_distribution" "website_cdn_root" {
 
   default_root_object = "index.html"
 
-  logging_config {
-    bucket = aws_s3_bucket.website_logs.bucket_domain_name
-    prefix = "${var.website-domain-main}/"
-  }
+  # logging_config {
+  #   bucket = aws_s3_bucket.website_logs.bucket_domain_name
+  #   prefix = "${var.website-domain-main}/"
+  # }
 
   default_cache_behavior {
     allowed_methods  = ["GET", "HEAD", "OPTIONS"]
@@ -294,10 +295,10 @@ resource "aws_cloudfront_distribution" "website_cdn_redirect" {
     }
   }
 
-  logging_config {
-    bucket = aws_s3_bucket.website_logs.bucket_domain_name
-    prefix = "${var.website-domain-redirect}/"
-  }
+  # logging_config {
+  #   bucket = aws_s3_bucket.website_logs.bucket_domain_name
+  #   prefix = "${var.website-domain-redirect}/"
+  # }
 
   default_cache_behavior {
     allowed_methods  = ["GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT", "DELETE"]
